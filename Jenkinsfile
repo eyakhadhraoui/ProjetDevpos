@@ -1,50 +1,17 @@
 pipeline {
     agent any
-
-    tools {
-        maven 'M2_HOME'  // Assure-toi que Maven est installé sur Jenkins avec ce nom
-    }
-
     stages {
-
-        stage('GIT') {
+        stage('Checkout') {
             steps {
-                // Cloner le repo avec le token Git
-                git branch: 'brahim',
-                    url: 'https://github.com/BrahimGarram/devops.git',
+                git branch: 'main', 
+                    url: 'https://github.com/eyakhadhraoui/test.git', 
                     credentialsId: 'github-token'
             }
         }
-
-        stage('MVN CLEAN') {
+        stage('Build') {
             steps {
-                sh 'mvn clean'
+                sh 'mvn clean install'
             }
-        }
-
-        stage('MVN COMPILE') {
-            steps {
-                sh 'mvn compile'
-            }
-        }
-
-        stage('MVN SONARQUBE') {
-            steps {
-                // Utilise le serveur SonarQube configuré dans Jenkins
-                withSonarQubeEnv('sonarqube') {
-                    sh 'mvn sonar:sonar'
-                }
-            }
-        }
-
-    }
-
-    post {
-        success {
-            echo 'Pipeline terminé avec succès !'
-        }
-        failure {
-            echo 'Pipeline échoué.'
         }
     }
 }
