@@ -2,10 +2,8 @@ pipeline {
     agent any
 
     environment {
-        // URL de SonarQube
         SONAR_HOST_URL = 'http://192.168.33.10:9000'
-        // Token SonarQube stocké dans Jenkins Credentials
-        SONAR_AUTH_TOKEN = credentials('test')
+        SONAR_AUTH_TOKEN = credentials('test') // <- ton vrai ID
     }
 
     stages {
@@ -15,7 +13,7 @@ pipeline {
                 echo 'Cloning repository from GitHub...'
                 git branch: 'main',
                     url: 'https://github.com/eyakhadhraoui/test.git',
-                    credentialsId: 'pat_jenkins' // <- ID de ton Personal Access Token GitHub
+                    credentialsId: 'pat_jenkins' // <- ton ID GitHub PAT
             }
         }
 
@@ -58,11 +56,7 @@ pipeline {
     }
 
     post {
-        success {
-            echo 'Pipeline completed successfully! 🎉'
-        }
-        failure {
-            echo 'Pipeline failed. ❌'
-        }
+        success { echo 'Pipeline completed successfully! 🎉' }
+        failure { echo 'Pipeline failed. ❌' }
     }
 }
