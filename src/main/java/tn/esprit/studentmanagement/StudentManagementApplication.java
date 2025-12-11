@@ -1,15 +1,13 @@
-package tn.esprit.tpfoyer;
+package tn.esprit.studentmanagement;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import tn.esprit.tpfoyer.entity.Chambre;
 
 @SpringBootApplication
-public class TpFoyerApplication {
+public class StudentManagementApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(TpFoyerApplication.class, args);
-
+        SpringApplication.run(StudentManagementApplication.class, args);
     }
 
 }

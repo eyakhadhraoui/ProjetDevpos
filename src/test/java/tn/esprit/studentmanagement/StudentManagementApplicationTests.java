@@ -1,10 +1,10 @@
-package tn.esprit.tpfoyer;
+package tn.esprit.studentmanagement;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class TpFoyerApplicationTests {
+class StudentManagementApplicationTests {
 
     @Test
     void contextLoads() {
