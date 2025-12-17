@@ -3,39 +3,42 @@ version: '3.8'
 services:
 
   # Base de données MySQL
-  tp-foyer-mysql:
+  student-mysql:
     image: mysql:8
-    container_name: tp-foyer-mysql
+    container_name: student-mysql
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: tpfoyer
+      MYSQL_DATABASE: studentdb
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root
     ports:
       - "3306:3306"
     networks:
-      - tp-network
+      - student-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
       interval: 10s
       retries: 10
       start_period: 30s
 
-
   # Application Spring Boot
-  tp-foyer-container:
-    image: tp-foyer-app:1.0
-    container_name: tp-foyer-container
+  student-app:
+    image: student-management-app:1.0
+    container_name: student-app
     depends_on:
-      tp-foyer-mysql:
+      student-mysql:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://tp-foyer-mysql:3306/tpfoyer
+      SPRING_DATASOURCE_URL: jdbc:mysql://student-mysql:3306/studentdb?createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
+      SERVER_PORT: 8089
+      SERVER_SERVLET_CONTEXT_PATH: /student
     ports:
-      - "8081:8080"
+      - "8089:8089"
     networks:
-      - tp-network
+      - student-network
 
 networks:
-  tp-network:
+  student-network:
     driver: bridge
