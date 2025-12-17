@@ -1,62 +1,54 @@
 pipeline {
     agent any
 
-    environment {
-        SONAR_HOST_URL = 'http://192.168.33.10:9000'
-        SONAR_AUTH_TOKEN = credentials('test') // <- ton vrai ID
+    tools {
+        maven 'M2_HOME'
     }
 
     stages {
 
-        stage('Checkout Code') {
+        stage('GIT') {
             steps {
-                echo 'Cloning repository from GitHub...'
                 git branch: 'main',
                     url: 'https://github.com/eyakhadhraoui/test.git',
-                    credentialsId: 'pat_jenkins' // <- ton ID GitHub PAT
+                    credentialsId: 'pat_jenkins' // Ton ID GitHub PAT
             }
         }
 
-        stage('Build') {
+        stage('MVN CLEAN') {
             steps {
-                echo 'Compiling the code...'
-                sh 'mvn clean compile'
+                sh 'mvn clean'
             }
         }
 
-        stage('Test') {
+        stage('MVN COMPILE') {
             steps {
-                echo 'Running unit tests...'
-                sh 'mvn test'
+                sh 'mvn compile'
             }
         }
 
-        stage('SonarQube Analysis') {
+        stage('MVN PACKAGE') {
             steps {
-                echo 'Running SonarQube analysis...'
-                withSonarQubeEnv('SonarQube') {
-                    sh """
-                        mvn sonar:sonar \
-                        -Dsonar.projectKey=sample_project \
-                        -Dsonar.host.url=$SONAR_HOST_URL \
-                        -Dsonar.login=$SONAR_AUTH_TOKEN
-                    """
+                sh 'mvn package -DskipTests'
+            }
+        }
+
+        stage('MVN SONARQUBE') {
+            steps {
+                withSonarQubeEnv('sonarqube') {
+                    sh 'mvn sonar:sonar'
                 }
             }
         }
 
-        stage('Quality Gate') {
-            steps {
-                echo 'Checking SonarQube Quality Gate...'
-                timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
-            }
-        }
     }
 
     post {
-        success { echo 'Pipeline completed successfully! 🎉' }
-        failure { echo 'Pipeline failed. ❌' }
+        success {
+            echo 'Pipeline terminé avec succès !'
+        }
+        failure {
+            echo 'Pipeline échoué.'
+        }
     }
 }
