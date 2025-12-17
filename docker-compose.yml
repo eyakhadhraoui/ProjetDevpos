@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+
+  # Base de données MySQL
+  tp-foyer-mysql:
+    image: mysql:8
+    container_name: tp-foyer-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: tpfoyer
+    ports:
+      - "3306:3306"
+    networks:
+      - tp-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 10s
+      retries: 10
+      start_period: 30s
+
+
+  # Application Spring Boot
+  tp-foyer-container:
+    image: tp-foyer-app:1.0
+    container_name: tp-foyer-container
+    depends_on:
+      tp-foyer-mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://tp-foyer-mysql:3306/tpfoyer
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    ports:
+      - "8081:8080"
+    networks:
+      - tp-network
+
+networks:
+  tp-network:
+    driver: bridge
