@@ -65,7 +65,7 @@ pipeline {
                 sh '''
                 echo "===== Kubernetes Deployment ====="
                 kubectl get nodes
-                kubectl apply -f student-man-main/k8s/
+                kubectl apply -f devops/k8s/
                 kubectl get pods -n devops
                 kubectl get svc -n devops
                 '''
