@@ -7,11 +7,11 @@ pipeline {
 
     stages {
 
-        stage('GIT') {
+        stage('GIT CHECKOUT') {
             steps {
                 git branch: 'main',
                     url: 'https://github.com/eyakhadhraoui/test.git',
-                    credentialsId: 'pat_jenkins' // Ton ID GitHub PAT
+                    credentialsId: 'pat_jenkins'
             }
         }
 
@@ -33,7 +33,7 @@ pipeline {
             }
         }
 
-        stage('MVN SONARQUBE') {
+        stage('SONARQUBE ANALYSIS') {
             steps {
                 withSonarQubeEnv('Sonarqube') {
                     sh 'mvn sonar:sonar'
@@ -41,41 +41,55 @@ pipeline {
             }
         }
 
-        stage('Docker Cleanup & Build') {
+        stage('DOCKER CLEANUP & BUILD') {
             steps {
                 sh '''
-                # Supprimer containers existants si ils existent
                 docker rm -f student-app student-mysql || true
-                
-                # Supprimer l'ancienne image si elle existe
                 docker rmi -f student-management-app:1.0 || true
-
-                # Build de la nouvelle image Spring Boot
                 docker build -t student-management-app:1.0 .
                 '''
             }
         }
 
-        stage('Docker Compose Up') {
+        stage('DOCKER COMPOSE UP') {
             steps {
                 sh '''
-                # Supprimer containers et réseaux orphelins
                 docker-compose down --remove-orphans
-
-                # Lancer les services avec build
                 docker-compose up -d --build
                 '''
             }
         }
 
+        stage('KUBERNETES DEPLOY') {
+            steps {
+                sh '''
+                echo "===== Kubernetes Deployment ====="
+                kubectl get nodes
+                kubectl apply -f student-man-main/k8s/
+                kubectl get pods -n devops
+                kubectl get svc -n devops
+                '''
+            }
+        }
+
+        stage('CREATE DEPARTMENT') {
+            steps {
+                sh '''
+                echo "===== Creating Department via REST API ====="
+                curl -X POST http://192.168.49.2:32639/department/createDepartment \
+                     -H "Content-Type: application/json" \
+                     -d '{"name":"Finance","location":"Sfax"}'
+                '''
+            }
+        }
     }
 
     post {
         success {
-            echo 'Pipeline terminé avec succès !'
+            echo '✅ Pipeline complet exécuté avec succès'
         }
         failure {
-            echo 'Pipeline échoué.'
+            echo '❌ Échec du pipeline'
         }
     }
 }
