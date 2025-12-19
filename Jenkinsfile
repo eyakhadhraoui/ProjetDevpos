@@ -7,7 +7,7 @@ pipeline {
 
     stages {
 
-        stage('GIT CHECKOUT') {
+        stage('GIT') {
             steps {
                 git branch: 'main',
                     url: 'https://github.com/eyakhadhraoui/test.git',
@@ -33,7 +33,7 @@ pipeline {
             }
         }
 
-        stage('SONARQUBE ANALYSIS') {
+        stage('MVN SONARQUBE') {
             steps {
                 withSonarQubeEnv('Sonarqube') {
                     sh 'mvn sonar:sonar'
@@ -41,7 +41,7 @@ pipeline {
             }
         }
 
-        stage('DOCKER CLEANUP & BUILD') {
+        stage('Docker Cleanup & Build') {
             steps {
                 sh '''
                 docker rm -f student-app student-mysql || true
@@ -51,7 +51,7 @@ pipeline {
             }
         }
 
-        stage('DOCKER COMPOSE UP') {
+        stage('Docker Compose Up') {
             steps {
                 sh '''
                 docker-compose down --remove-orphans
@@ -60,25 +60,44 @@ pipeline {
             }
         }
 
+        /* =======================
+           GIT KUBERNETES MANIFESTS
+        ======================= */
+        stage('GIT KUBERNETES MANIFESTS') {
+            steps {
+                dir('k8s-repo') {
+                    git branch: 'master',
+                        url: 'https://github.com/NadineMili/student-management-devops.git'
+                }
+            }
+        }
+
+        /* =======================
+           KUBERNETES DEPLOY
+        ======================= */
         stage('KUBERNETES DEPLOY') {
             steps {
                 sh '''
                 echo "===== Kubernetes Deployment ====="
                 kubectl get nodes
-                kubectl apply -f devops/k8s/
+                kubectl apply -f k8s-repo/student-man-main/k8s/
                 kubectl get pods -n devops
                 kubectl get svc -n devops
                 '''
             }
         }
 
+        /* =======================
+           API REST
+        ======================= */
         stage('CREATE DEPARTMENT') {
             steps {
                 sh '''
                 echo "===== Creating Department via REST API ====="
+                sleep 20
                 curl -X POST http://192.168.49.2:32639/department/createDepartment \
                      -H "Content-Type: application/json" \
-                     -d '{"name":"Finance","location":"Sfax"}'
+                     -d '{"name": "Finance", "location": "Sfax"}'
                 '''
             }
         }
@@ -86,10 +105,10 @@ pipeline {
 
     post {
         success {
-            echo '✅ Pipeline complet exécuté avec succès'
+            echo 'Pipeline terminé avec succès !'
         }
         failure {
-            echo '❌ Échec du pipeline'
+            echo 'Pipeline échoué.'
         }
     }
 }
