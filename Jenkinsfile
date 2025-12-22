@@ -5,17 +5,10 @@ pipeline {
         maven 'M2_HOME'
     }
 
-    environment {
-        SPRING_APP_NAME = "student-management-app"
-        SPRING_PORT = "8089"
-        NODE_EXPORTER_PORT = "9100"
-        VM_IP = "192.168.33.10"   // IP de la VM Vagrant
-    }
-
     stages {
 
         /* =======================
-           1. CLONE GITHUB REPO
+           GIT CODE
         ======================= */
         stage('GIT') {
             steps {
@@ -26,17 +19,20 @@ pipeline {
         }
 
         /* =======================
-           2. BUILD MAVEN
+           MAVEN BUILD
         ======================= */
-        stage('MVN CLEAN & PACKAGE') {
-            steps {
-                sh 'mvn clean package -DskipTests'
-            }
+        stage('MVN CLEAN') {
+            steps { sh 'mvn clean' }
         }
 
-        /* =======================
-           3. SONARQUBE ANALYSIS
-        ======================= */
+        stage('MVN COMPILE') {
+            steps { sh 'mvn compile' }
+        }
+
+        stage('MVN PACKAGE') {
+            steps { sh 'mvn package -DskipTests' }
+        }
+
         stage('MVN SONARQUBE') {
             steps {
                 withSonarQubeEnv('Sonarqube') {
@@ -46,51 +42,48 @@ pipeline {
         }
 
         /* =======================
-           4. DEPLOY SPRING BOOT APP (DOCKER)
+           DOCKER SPRING BOOT
         ======================= */
-        stage('Docker Build & Run Spring Boot') {
+        stage('Docker Cleanup & Build Spring Boot') {
             steps {
                 sh '''
-                docker rm -f ${SPRING_APP_NAME} || true
-                docker rmi -f ${SPRING_APP_NAME}:1.0 || true
-                docker build -t ${SPRING_APP_NAME}:1.0 .
-                docker run -d -p ${SPRING_PORT}:${SPRING_PORT} --name ${SPRING_APP_NAME} ${SPRING_APP_NAME}:1.0
+                docker rm -f student-app student-mysql || true
+                docker rmi -f student-management-app:1.0 || true
+                docker build -t student-management-app:1.0 .
+                docker run -d -p 8089:8089 --name student-app student-management-app:1.0
                 '''
             }
         }
 
         /* =======================
-           5. DEPLOY NODE EXPORTER
+           DOCKER COMPOSE SERVICES
+        ======================= */
+        stage('Docker Compose Up') {
+            steps {
+                sh '''
+                docker-compose down --remove-orphans
+                docker-compose up -d --build
+                '''
+            }
+        }
+
+        /* =======================
+           DEPLOY NODE EXPORTER
         ======================= */
         stage('Deploy Node Exporter') {
             steps {
                 sh '''
+                # Arrêter si déjà existant
                 docker rm -f node_exporter || true
+
+                # Lancer Node Exporter
                 docker run -d --net=host --name node_exporter quay.io/prometheus/node-exporter:latest
                 '''
             }
         }
 
         /* =======================
-           6. CHECK SERVICES
-        ======================= */
-        stage('Check Services') {
-            steps {
-                sh '''
-                echo "=== Vérification Node Exporter ==="
-                curl -s http://${VM_IP}:${NODE_EXPORTER_PORT}/metrics | head -n 5
-
-                echo "=== Vérification Spring Boot ==="
-                curl -s http://${VM_IP}:${SPRING_PORT}/student/actuator/prometheus | head -n 5
-
-                echo "=== Vérification Jenkins (Prometheus Plugin) ==="
-                curl -s http://localhost:8080/prometheus | head -n 5
-                '''
-            }
-        }
-
-        /* =======================
-           7. KUBERNETES DEPLOY
+           GIT KUBERNETES MANIFESTS
         ======================= */
         stage('GIT KUBERNETES MANIFESTS') {
             steps {
@@ -101,6 +94,9 @@ pipeline {
             }
         }
 
+        /* =======================
+           KUBERNETES DEPLOY
+        ======================= */
         stage('KUBERNETES DEPLOY') {
             steps {
                 sh '''
@@ -114,16 +110,34 @@ pipeline {
         }
 
         /* =======================
-           8. CREATE SAMPLE DEPARTMENT
+           API REST TEST
         ======================= */
         stage('CREATE DEPARTMENT') {
             steps {
                 sh '''
                 echo "===== Creating Department via REST API ====="
                 sleep 20
-                curl -X POST http://${VM_IP}:32639/department/createDepartment \
+                curl -X POST http://192.168.49.2:32639/department/createDepartment \
                      -H "Content-Type: application/json" \
                      -d '{"name": "Finance", "location": "Sfax"}'
+                '''
+            }
+        }
+
+        /* =======================
+           VERIFIER SERVICES POUR PROMETHEUS
+        ======================= */
+        stage('Verify Metrics Endpoints') {
+            steps {
+                sh '''
+                echo "===== Vérification Node Exporter ====="
+                curl -s http://192.168.33.10:9100/metrics | head -n 5 || echo "Node Exporter inaccessible"
+                
+                echo "===== Vérification Spring Boot ====="
+                curl -s http://192.168.33.10:8089/student/actuator/prometheus | head -n 5 || echo "Spring Boot inaccessible"
+                
+                echo "===== Vérification Jenkins ====="
+                curl -s http://192.168.33.10:8080/prometheus | head -n 5 || echo "Jenkins inaccessible"
                 '''
             }
         }
@@ -131,10 +145,10 @@ pipeline {
 
     post {
         success {
-            echo 'Pipeline terminé avec succès !'
+            echo 'Pipeline terminé avec succès ! Tous les services pour Prometheus sont prêts.'
         }
         failure {
-            echo 'Pipeline échoué.'
+            echo 'Pipeline échoué. Vérifier les logs et les endpoints.'
         }
     }
 }
